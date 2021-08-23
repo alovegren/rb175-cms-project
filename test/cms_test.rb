@@ -49,4 +49,13 @@ class CMSTest < Minitest::Test
     get "/"
     refute_includes last_response.body, "nub.rb does not exist."
   end
+
+  # test/cms_test.rb
+  def test_viewing_markdown_document
+    get "/nub.md"
+
+    assert_equal 200, last_response.status
+    assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
+    assert_includes last_response.body, "<h1>Nub</h1>"
+  end
 end
