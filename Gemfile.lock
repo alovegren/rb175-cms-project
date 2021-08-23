@@ -1,6 +1,7 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    erubis (2.7.0)
     multi_json (1.15.0)
     mustermann (1.1.1)
       ruby2_keywords (~> 0.0.1)
@@ -20,16 +21,16 @@ GEM
       sinatra (= 2.1.0)
       tilt (~> 2.0)
     tilt (2.0.10)
+    webrick (1.7.0)
 
 PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  erubis
   sinatra
   sinatra-contrib
-
-RUBY VERSION
-   ruby 3.0.0p0
+  webrick
 
 BUNDLED WITH
    2.2.26
