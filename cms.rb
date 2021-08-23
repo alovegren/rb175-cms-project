@@ -4,5 +4,6 @@ require "sinatra/content_for"
 require "tilt/erubis"
 
 get '/' do
-  "Getting started"
+  @files = Dir.glob("/public/*").map { |file| File.basename(file) }
+  erb :home
 end
