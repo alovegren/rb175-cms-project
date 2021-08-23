@@ -1,7 +1,18 @@
-<ul>
-  <% @files.each do |file| %>
-    <li>
-      <a href="/<%= file %>"><%= file %></a>
-    </li>
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <title>File-based CMS System</title>
+    <meta charset="UTF-8">
+    
+  <% if session[:error] %>
+    <p><%= session.delete(:error) %></p>
   <% end %>
-</ul>
+
+  <ul>
+    <% @files.each do |file| %>
+      <li>
+        <a href="/<%= file %>"><%= file %></a>
+      </li>
+    <% end %>
+  </ul>
+</html>

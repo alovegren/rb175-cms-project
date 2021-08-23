@@ -3,6 +3,7 @@ ENV["RACK_ENV"] = "test"
 require "minitest/autorun"
 require "rack/test"
 require "minitest/reporters"
+require "pry"
 
 Minitest::Reporters.use!
 
@@ -31,7 +32,21 @@ class CMSTest < Minitest::Test
     get "/history.txt"
     filename = "#{@current_dir}/../data/history.txt"
     assert_equal 200, last_response.status
-    assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
+    assert_equal "text/plain", last_response["Content-Type"]
     assert_equal File.read(filename), last_response.body
+  end
+
+  def test_nonexistent_file
+    get "/nub.rb"
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "nub.rb does not exist."
+
+    get "/"
+    refute_includes last_response.body, "nub.rb does not exist."
   end
 end
