@@ -33,7 +33,7 @@ class CMSTest < Minitest::Test
     filename = "#{@current_dir}/../data/history.txt"
     assert_equal 200, last_response.status
     assert_equal "text/plain", last_response["Content-Type"]
-    assert_equal File.read(filename), last_response.body
+    assert_includes last_response.body, "Our understanding of what Gogol meant"
   end
 
   def test_nonexistent_file
@@ -57,5 +57,26 @@ class CMSTest < Minitest::Test
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
     assert_includes last_response.body, "<h1>Nub</h1>"
+  end
+
+  def test_flash_after_edit
+    post "/about.txt", content: "THIS FILE HAS BEEN EDITED........ but it used to say a whole lot of cool stuff about Gogol :-( I didn't realize my tests would alter the file!"
+
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_includes last_response.body, "File has been edited."
+
+    get "/"
+    refute_includes last_response.body, "File has been edited."
+  end
+
+  def test_edit_document
+    post "/about.txt", content: "THIS FILE HAS BEEN EDITED"
+    # once the post request is fulfilled, user will be redirected
+    assert_equal 302, last_response.status
+
+    get "/about.txt"
+    assert_includes last_response.body, "THIS FILE HAS BEEN EDITED"
   end
 end
