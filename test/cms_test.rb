@@ -71,15 +71,7 @@ class CMSTest < Minitest::Test
     get "/nub.rb"
 
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "nub.rb does not exist."
-
-    # ensure flash error is displaying and being deleted properly
-    get "/"
-    refute_includes last_response.body, "nub.rb does not exist."
+    assert_equal "nub.rb does not exist.", session[:message]
   end
 
   def test_flash_after_edit
@@ -87,12 +79,10 @@ class CMSTest < Minitest::Test
     post "/about.txt", content: "anything"
 
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "File has been edited."
+    assert_equal "File has been edited.", session[:message]
 
     get "/"
-    refute_includes last_response.body, "File has been edited."
+    assert_nil session[:message]
   end
 
   def test_edit_document
@@ -112,8 +102,9 @@ class CMSTest < Minitest::Test
 
   def test_create_new_doc
     sign_in
-    post '/', doc_title: "newdoc.txt"
+    post '/create', doc_title: "newdoc.txt"
     assert_equal 302, last_response.status
+    assert_equal "newdoc.txt has been created", session[:message]
     
     # confirm new file is included in index listing
     get last_response["Location"]
@@ -126,7 +117,7 @@ class CMSTest < Minitest::Test
 
   def test_empty_doc_name
     filecount_before = get_files(data_path.size)
-    post '/', doc_title: ""
+    post '/create', doc_title: ""
     assert_equal 422, last_response.status
 
     # no Location is sent in response since the new template is rendered again rather than a redirect ocurring
@@ -151,12 +142,10 @@ class CMSTest < Minitest::Test
 
     post '/nub.md/delete'
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "nub.md was deleted."
+    assert_equal "nub.md was deleted.", session[:message]
 
     get "/"
-    refute_includes last_response.body, "nub.md"
+    refute_includes last_response.body, %q(href="/test.txt")
   end
 
   def test_not_signed_in
@@ -170,47 +159,40 @@ class CMSTest < Minitest::Test
   def test_bad_credentials
     post '/users/signin', username: "missy", password: "nub"
     assert_equal 422, last_response.status
-
+    assert_nil session[:username]
     assert_includes last_response.body, "Invalid Credentials"
-    assert_includes last_response.body, "Username"
+
   end
 
   def test_good_credentials
-    create_document "nub.md"
-
     post '/users/signin', username: "admin", password: "secret"
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "Welcome!"
-    assert_includes last_response.body, "nub.md"
-    assert_includes last_response.body, "Signed in as admin."
+    assert_equal "Welcome!", session[:message]
+    assert_equal "admin", session[:username]
   end
 
   def test_signout
-    sign_in
-    post 'users/signin', username: "admin", password: "secret"
-    get last_response["Location"]
-    assert_includes last_response.body, "Welcome"
+    get "/", {}, {"rack.session" => { username: "admin" } }
+    assert_includes last_response.body, "Signed in as admin"
 
     post '/users/signout'
-    assert_equal 302, last_response.status
-    get last_response["Location"]
+    assert_equal "You have been signed out", session[:message]
 
-    assert_includes last_response.body, "You have been signed out"
+    get last_response["Location"]
+    assert_nil session[:username]
     assert_includes last_response.body, "Username"
   end
 
   def test_signout
     skip
-    sign_in
-    get last_response["Location"]
-    assert_includes last_response.body, "Welcome"
+    get "/", {}, {"rack.session" => { username: "admin" } }
+    assert_includes last_response.body, "Signed in as admin"
 
     post "/users/signout"
+    assert_equal "You have been signed out", session[:message]
+    
     get last_response["Location"]
-
-    assert_includes last_response.body, "You have been signed out"
+    assert_nil session[:username]
     assert_includes last_response.body, "Sign In"
   end
 

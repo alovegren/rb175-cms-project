@@ -53,7 +53,7 @@ get '/new' do
 end
 
 # Update filesystem with new document
-post '/' do
+post '/create' do
   docname = params[:doc_title]
   if docname.empty?
     session[:message] = "A name is required"
