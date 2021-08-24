@@ -39,8 +39,12 @@ end
 
 # View all files
 get '/' do
-  @files = get_files(data_path)
-  erb :index
+  if session[:username]
+    @files = get_files(data_path)
+    erb :index
+  else
+    redirect '/users/signin'
+  end
 end
 
 # Render new doc form
@@ -91,3 +95,59 @@ post '/:filename' do
   session[:message] = "File has been edited."
   redirect "/"
 end
+
+# delete a file
+post '/:filename/delete' do
+  file_path = File.join(data_path, params[:filename])
+
+  File.delete(file_path)
+
+  session[:message] = "#{params[:filename]} was deleted."
+  redirect "/"
+end
+
+# render sign in form
+get '/users/signin' do
+  erb :signin
+end
+
+# update session data with login info
+post '/users/signin' do
+  if params[:username] == "admin" && params[:password] == "secret"
+    session[:username] = params[:username]
+    session[:message] = "Welcome!"
+    redirect "/"
+  else
+    session[:message] = "Invalid Credentials"
+    status 422
+    erb :signin
+  end
+end
+
+# sign a user out
+post '/users/signout' do
+  session.delete(:username)
+  session[:message] = "You have been signed out"
+  redirect "/"
+end
+
+=begin
++ on home page, check whether a user is signed in via a session parameter
+  + if not, redirect to users/signin
+  + if so, proceed with existing code in '/' route
++ create new route for users/signin
++ within the route, display a signin form
+  + if credentials match, 
+    + direct signin to a post route
+  + otherwise,
+    + display an error message and re-render the signin form
++ create post route to update the server with the signin information
++ set session parameter corresponding to login equal to true
++ redirect to homepage
+
++ add 'signed in as $USER' to home page
++ add signout button
+  + post button output to some signout route
+  - set login equal to false
+  - redirect to homepage
+=end

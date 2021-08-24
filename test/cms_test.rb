@@ -21,13 +21,22 @@ class CMSTest < Minitest::Test
     FileUtils.mkdir_p(data_path)
   end
 
+  def session
+    last_request.env["rack.session"]
+  end
+
   def create_document(name, content = "")
     File.open(File.join(data_path, name), "w") do |file|
       file.write(content)
     end
   end
 
+  def sign_in
+    post "/users/signin", username: "admin", password: "secret"
+  end
+
   def test_index
+    sign_in
     create_document "about.md"
     create_document "changes.txt"
 
@@ -58,6 +67,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_nonexistent_file
+    sign_in
     get "/nub.rb"
 
     assert_equal 302, last_response.status
@@ -73,6 +83,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_flash_after_edit
+    sign_in
     post "/about.txt", content: "anything"
 
     assert_equal 302, last_response.status
@@ -100,6 +111,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_create_new_doc
+    sign_in
     post '/', doc_title: "newdoc.txt"
     assert_equal 302, last_response.status
     
@@ -125,39 +137,84 @@ class CMSTest < Minitest::Test
     assert_equal filecount_before, filecount_after
   end
 
-  def test_create_new_document
-    post "/", doc_title: "test.txt"
+  def test_index_has_delete_buttons
+    sign_in
+    create_document "nub.md"
+
+    get '/'
+    assert_includes last_response.body, "<button type='submit'>Delete</button>"
+  end
+  
+  def test_delete_document
+    sign_in
+    create_document "nub.md"
+
+    post '/nub.md/delete'
     assert_equal 302, last_response.status
 
     get last_response["Location"]
-    assert_includes last_response.body, "test.txt has been created"
+    assert_includes last_response.body, "nub.md was deleted."
 
     get "/"
-    assert_includes last_response.body, "test.txt"
+    refute_includes last_response.body, "nub.md"
   end
 
-  def test_create_new_document_without_filename
-    post "/", doc_title: ""
-    assert_equal 422, last_response.status
-    assert_includes last_response.body, "A name is required"
+  def test_not_signed_in
+    get '/'
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_includes last_response.body, "Username"
   end
-  
+
+  def test_bad_credentials
+    post '/users/signin', username: "missy", password: "nub"
+    assert_equal 422, last_response.status
+
+    assert_includes last_response.body, "Invalid Credentials"
+    assert_includes last_response.body, "Username"
+  end
+
+  def test_good_credentials
+    create_document "nub.md"
+
+    post '/users/signin', username: "admin", password: "secret"
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_includes last_response.body, "Welcome!"
+    assert_includes last_response.body, "nub.md"
+    assert_includes last_response.body, "Signed in as admin."
+  end
+
+  def test_signout
+    sign_in
+    post 'users/signin', username: "admin", password: "secret"
+    get last_response["Location"]
+    assert_includes last_response.body, "Welcome"
+
+    post '/users/signout'
+    assert_equal 302, last_response.status
+    get last_response["Location"]
+
+    assert_includes last_response.body, "You have been signed out"
+    assert_includes last_response.body, "Username"
+  end
+
+  def test_signout
+    skip
+    sign_in
+    get last_response["Location"]
+    assert_includes last_response.body, "Welcome"
+
+    post "/users/signout"
+    get last_response["Location"]
+
+    assert_includes last_response.body, "You have been signed out"
+    assert_includes last_response.body, "Sign In"
+  end
+
   def teardown
     FileUtils.rm_rf(data_path)
   end
 end
-
-# + create a new route pointing to /new
-# + update html to include link to new document route
-# + create view template to render new document form
-  # + add prompt
-  # + add text field
-  # + add create button
-# + create a new post route to update the server with the data obtained from the form submission
-  # if file name is not empty,
-    # - save file to file system
-    # + store success message in session
-    # + redirect to homepage
-  # if it is,
-    # + store failure message in session
-    # + redirect to homepage
