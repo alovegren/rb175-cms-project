@@ -37,6 +37,11 @@ def load_contents(file_path)
   end
 end
 
+def unauthorized_action_redirect
+  session[:message] = "You must be signed in to do that."
+  redirect "/"
+end
+
 # View all files
 get '/' do
   if session[:username]
@@ -49,20 +54,28 @@ end
 
 # Render new doc form
 get '/new' do
-  erb :new
+  if session[:username]
+    erb :new
+  else
+    unauthorized_action_redirect
+  end
 end
 
 # Update filesystem with new document
 post '/create' do
-  docname = params[:doc_title]
-  if docname.empty?
-    session[:message] = "A name is required"
-    status 422
-    erb :new
+  if session[:username]
+    docname = params[:doc_title]
+    if docname.empty?
+      session[:message] = "A name is required"
+      status 422
+      erb :new
+    else
+      File.write("#{data_path}/#{docname}", "")
+      session[:message] = "#{docname} has been created"
+      redirect "/"
+    end
   else
-    File.write("#{data_path}/#{docname}", "")
-    session[:message] = "#{docname} has been created"
-    redirect "/"
+    unauthorized_action_redirect
   end
 end
 
@@ -80,30 +93,42 @@ end
 
 # Render edit form
 get '/:filename/edit_file' do
-  file_path = File.join(data_path, params[:filename])
-  @filename = params[:filename]
-  @content = File.read(file_path)
+  if session[:username]
+    file_path = File.join(data_path, params[:filename])
+    @filename = params[:filename]
+    @content = File.read(file_path)
 
-  erb :edit_file
+    erb :edit_file
+  else
+    unauthorized_action_redirect
+  end
 end
 
 # Update filesystem with document edit form
 post '/:filename' do
-  file_path = File.join(data_path, params[:filename])
+  if session[:username]
+    file_path = File.join(data_path, params[:filename])
 
-  File.write(file_path, params[:content])
-  session[:message] = "File has been edited."
-  redirect "/"
+    File.write(file_path, params[:content])
+    session[:message] = "File has been edited."
+    redirect "/"
+  else
+    unauthorized_action_redirect
+  end
 end
 
 # delete a file
 post '/:filename/delete' do
-  file_path = File.join(data_path, params[:filename])
+  if session[:username]
+    file_path = File.join(data_path, params[:filename])
 
-  File.delete(file_path)
+    File.delete(file_path)
 
-  session[:message] = "#{params[:filename]} was deleted."
-  redirect "/"
+    session[:message] = "#{params[:filename]} was deleted."
+    redirect "/"
+  else
+    unauthorized_action_redirect
+  end
 end
 
 # render sign in form

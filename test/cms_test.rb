@@ -31,16 +31,20 @@ class CMSTest < Minitest::Test
     end
   end
 
-  def sign_in
-    post "/users/signin", username: "admin", password: "secret"
+  def admin_session
+    { "rack.session" => { username: "admin" } }
+  end
+
+  def unauthorized_action_test
+    assert_equal 302, last_response.status
+    assert_equal "You must be signed in to do that.", session[:message]
   end
 
   def test_index
-    sign_in
     create_document "about.md"
     create_document "changes.txt"
 
-    get "/"
+    get "/", {}, admin_session
 
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
@@ -67,7 +71,6 @@ class CMSTest < Minitest::Test
   end
 
   def test_nonexistent_file
-    sign_in
     get "/nub.rb"
 
     assert_equal 302, last_response.status
@@ -75,18 +78,18 @@ class CMSTest < Minitest::Test
   end
 
   def test_flash_after_edit
-    sign_in
+    skip
     post "/about.txt", content: "anything"
 
     assert_equal 302, last_response.status
     assert_equal "File has been edited.", session[:message]
 
-    get "/"
+    get "/", {}, admin_session
     assert_nil session[:message]
   end
 
   def test_edit_document
-    post "/about.txt", content: "THIS FILE HAS BEEN EDITED"
+    post "/about.txt", { content: "THIS FILE HAS BEEN EDITED" }, admin_session
     # once the post request is fulfilled, user will be redirected
     assert_equal 302, last_response.status
 
@@ -95,14 +98,13 @@ class CMSTest < Minitest::Test
   end
 
   def test_render_new_doc_form
-    get "/new"
+    get "/new", {}, admin_session
     assert_equal 200, last_response.status
     assert_includes last_response.body, "<form method='post' action='/'>"
   end
 
   def test_create_new_doc
-    sign_in
-    post '/create', doc_title: "newdoc.txt"
+    post '/create', { doc_title: "newdoc.txt" }, admin_session
     assert_equal 302, last_response.status
     assert_equal "newdoc.txt has been created", session[:message]
     
@@ -117,7 +119,7 @@ class CMSTest < Minitest::Test
 
   def test_empty_doc_name
     filecount_before = get_files(data_path.size)
-    post '/create', doc_title: ""
+    post '/create', { doc_title: "" }, admin_session
     assert_equal 422, last_response.status
 
     # no Location is sent in response since the new template is rendered again rather than a redirect ocurring
@@ -129,18 +131,16 @@ class CMSTest < Minitest::Test
   end
 
   def test_index_has_delete_buttons
-    sign_in
     create_document "nub.md"
 
-    get '/'
+    get '/', {}, admin_session
     assert_includes last_response.body, "<button type='submit'>Delete</button>"
   end
   
   def test_delete_document
-    sign_in
     create_document "nub.md"
 
-    post '/nub.md/delete'
+    post '/nub.md/delete', {}, admin_session
     assert_equal 302, last_response.status
     assert_equal "nub.md was deleted.", session[:message]
 
@@ -194,6 +194,37 @@ class CMSTest < Minitest::Test
     get last_response["Location"]
     assert_nil session[:username]
     assert_includes last_response.body, "Sign In"
+  end
+
+  def test_unauthorized_edit
+    create_document "nub.rb"
+
+    get "/nub.rb/edit_file"
+    unauthorized_action_test
+  end
+
+  def test_unauthorized_changes
+    create_document "nub.rb"
+
+    post "/nub.rb"
+    unauthorized_action_test
+  end
+
+  def test_unauthorized_view_new_doc
+    get "/new"
+    unauthorized_action_test
+  end
+
+  def test_unauthorized_new_doc_submission
+    post "/create"
+    unauthorized_action_test
+  end
+
+  def test_unauthorized_doc_deletion
+    create_document "nub.rb"
+
+    post "nub.rb/delete"
+    unauthorized_action_test
   end
 
   def teardown
