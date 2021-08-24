@@ -30,30 +30,51 @@ def load_contents(file_path)
 
   case File.extname(file_path)
   when ".md"
-    render_markdown(contents)
-  when ".txt"
+    erb render_markdown(contents)
+  else
     headers["Content-Type"] = "text/plain"
     contents
   end
 end
 
+# View all files
 get '/' do
   @files = get_files(data_path)
   erb :index
 end
 
-get '/:filename' do
-  file_path = File.join(data_path, params[:filename])
+# Render new doc form
+get '/new' do
+  erb :new
+end
 
-  if File.file?(file_path)
-    @content = load_contents(file_path)
-    erb :file
+# Update filesystem with new document
+post '/' do
+  docname = params[:doc_title]
+  if docname.empty?
+    session[:message] = "A name is required"
+    status 422
+    erb :new
   else
-    session[:error] = "#{params[:filename]} does not exist."
+    File.write("#{data_path}/#{docname}", "")
+    session[:message] = "#{docname} has been created"
     redirect "/"
   end
 end
 
+# View file
+get '/:filename' do 
+  file_path = File.join(data_path, params[:filename])
+
+  if File.file?(file_path)
+    load_contents(file_path)
+  else
+    session[:message] = "#{params[:filename]} does not exist."
+    redirect "/"
+  end
+end
+
+# Render edit form
 get '/:filename/edit_file' do
   file_path = File.join(data_path, params[:filename])
   @filename = params[:filename]
@@ -62,10 +83,11 @@ get '/:filename/edit_file' do
   erb :edit_file
 end
 
+# Update filesystem with document edit form
 post '/:filename' do
   file_path = File.join(data_path, params[:filename])
 
   File.write(file_path, params[:content])
-  session[:success] = "File has been edited."
-  redirect "/#{params[:filename]}"
+  session[:message] = "File has been edited."
+  redirect "/"
 end

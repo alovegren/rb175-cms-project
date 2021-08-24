@@ -93,7 +93,71 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, "THIS FILE HAS BEEN EDITED"
   end
 
+  def test_render_new_doc_form
+    get "/new"
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "<form method='post' action='/'>"
+  end
+
+  def test_create_new_doc
+    post '/', doc_title: "newdoc.txt"
+    assert_equal 302, last_response.status
+    
+    # confirm new file is included in index listing
+    get last_response["Location"]
+    assert_includes last_response.body, "newdoc.txt"
+
+    # confirm path to new file exists
+    get '/newdoc.txt'
+    assert_equal 200, last_response.status
+  end
+
+  def test_empty_doc_name
+    filecount_before = get_files(data_path.size)
+    post '/', doc_title: ""
+    assert_equal 422, last_response.status
+
+    # no Location is sent in response since the new template is rendered again rather than a redirect ocurring
+    assert_includes last_response.body, "A name is required"
+
+    # ensure no new file was created
+    filecount_after = get_files(data_path.size)
+    assert_equal filecount_before, filecount_after
+  end
+
+  def test_create_new_document
+    post "/", doc_title: "test.txt"
+    assert_equal 302, last_response.status
+
+    get last_response["Location"]
+    assert_includes last_response.body, "test.txt has been created"
+
+    get "/"
+    assert_includes last_response.body, "test.txt"
+  end
+
+  def test_create_new_document_without_filename
+    post "/", doc_title: ""
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "A name is required"
+  end
+  
   def teardown
     FileUtils.rm_rf(data_path)
   end
 end
+
+# + create a new route pointing to /new
+# + update html to include link to new document route
+# + create view template to render new document form
+  # + add prompt
+  # + add text field
+  # + add create button
+# + create a new post route to update the server with the data obtained from the form submission
+  # if file name is not empty,
+    # - save file to file system
+    # + store success message in session
+    # + redirect to homepage
+  # if it is,
+    # + store failure message in session
+    # + redirect to homepage
