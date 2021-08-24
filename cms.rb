@@ -8,14 +8,16 @@ configure do
   set :session_secret, 'secret'
 end
 
-current_dir = File.expand_path("..", __FILE__)
-
-def get_abs_filepath(current_dir)
-  Dir.glob("#{current_dir}/data/*").map { |file| File.basename(file) }
+def data_path
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/data", __FILE__)
+  else
+    File.expand_path("../data", __FILE__)
+  end
 end
 
-def get_filepath(current_dir)
-  current_dir + "/data/" + params[:filename]
+def get_files(data_path)
+  Dir.glob("#{data_path}/*").map { |file| File.basename(file) }
 end
 
 def render_markdown(text)
@@ -36,15 +38,15 @@ def load_contents(file_path)
 end
 
 get '/' do
-  @files = get_abs_filepath(current_dir)
+  @files = get_files(data_path)
   erb :index
 end
 
 get '/:filename' do
-  @file_path = (get_filepath(current_dir))
+  file_path = File.join(data_path, params[:filename])
 
-  if File.file?(@file_path)
-    @content = load_contents(@file_path)
+  if File.file?(file_path)
+    @content = load_contents(file_path)
     erb :file
   else
     session[:error] = "#{params[:filename]} does not exist."
@@ -53,18 +55,17 @@ get '/:filename' do
 end
 
 get '/:filename/edit_file' do
+  file_path = File.join(data_path, params[:filename])
   @filename = params[:filename]
-  @content = File.read((get_filepath(current_dir)))
+  @content = File.read(file_path)
 
   erb :edit_file
 end
 
 post '/:filename' do
-  filename = params[:filename]
-  file_path = get_filepath(current_dir)
-  new_contents = params[:content]
+  file_path = File.join(data_path, params[:filename])
 
-  File.write(file_path, new_contents)
+  File.write(file_path, params[:content])
   session[:success] = "File has been edited."
-  redirect "/#{filename}"
+  redirect "/#{params[:filename]}"
 end

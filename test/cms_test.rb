@@ -4,6 +4,7 @@ require "minitest/autorun"
 require "rack/test"
 require "minitest/reporters"
 require "pry"
+require "fileutils"
 
 Minitest::Reporters.use!
 
@@ -17,23 +18,43 @@ class CMSTest < Minitest::Test
   end
 
   def setup
-    @current_dir = File.expand_path("..", __FILE__)
-    @files = Dir.glob("#{@current_dir}/data/*").map { |file| File.basename(file) }
+    FileUtils.mkdir_p(data_path)
+  end
+
+  def create_document(name, content = "")
+    File.open(File.join(data_path, name), "w") do |file|
+      file.write(content)
+    end
   end
 
   def test_index
+    create_document "about.md"
+    create_document "changes.txt"
+
     get "/"
+
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
-    assert @files.all? { |file| last_response.body.include?(file) }
+    assert_includes last_response.body, "about.md"
+    assert_includes last_response.body, "changes.txt"
   end
 
-  def test_view_file
-    get "/history.txt"
-    filename = "#{@current_dir}/../data/history.txt"
+  def test_view_text_file
+    create_document "changes.txt", "Emmers was a fine gentleman whose house was made of clay."
+
+    get "/changes.txt"
     assert_equal 200, last_response.status
     assert_equal "text/plain", last_response["Content-Type"]
-    assert_includes last_response.body, "Our understanding of what Gogol meant"
+    assert_includes last_response.body, "Emmers was a fine gentleman"
+  end
+
+  def test_view_markdown_file
+    create_document "nub.md", "# Nub"
+    get "/nub.md"
+
+    assert_equal 200, last_response.status
+    assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
+    assert_includes last_response.body, "<h1>Nub</h1>"
   end
 
   def test_nonexistent_file
@@ -46,21 +67,13 @@ class CMSTest < Minitest::Test
     assert_equal 200, last_response.status
     assert_includes last_response.body, "nub.rb does not exist."
 
+    # ensure flash error is displaying and being deleted properly
     get "/"
     refute_includes last_response.body, "nub.rb does not exist."
   end
 
-  # test/cms_test.rb
-  def test_viewing_markdown_document
-    get "/nub.md"
-
-    assert_equal 200, last_response.status
-    assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
-    assert_includes last_response.body, "<h1>Nub</h1>"
-  end
-
   def test_flash_after_edit
-    post "/about.txt", content: "THIS FILE HAS BEEN EDITED........ but it used to say a whole lot of cool stuff about Gogol :-( I didn't realize my tests would alter the file!"
+    post "/about.txt", content: "anything"
 
     assert_equal 302, last_response.status
 
@@ -78,5 +91,9 @@ class CMSTest < Minitest::Test
 
     get "/about.txt"
     assert_includes last_response.body, "THIS FILE HAS BEEN EDITED"
+  end
+
+  def teardown
+    FileUtils.rm_rf(data_path)
   end
 end
