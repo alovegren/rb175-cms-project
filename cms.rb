@@ -5,6 +5,8 @@ require "redcarpet"
 require "yaml"
 require "bcrypt"
 
+SUPPORTED_EXTENSIONS = ['.md', '.txt', '.html']
+
 configure do
   enable :sessions
   set :session_secret, 'secret'
@@ -59,6 +61,7 @@ end
 def valid_login?(username, password)
   valid_users = get_valid_users
 
+  valid_users.key?(username) &&
   BCrypt::Password.new(valid_users[username]) == password
 end
 
@@ -87,6 +90,10 @@ post '/create' do
     docname = params[:doc_title]
     if docname.empty?
       session[:message] = "A name is required"
+      status 422
+      erb :new
+    elsif SUPPORTED_EXTENSIONS.none? { |ext| docname.include? ext }
+      session[:message] = "Sorry, only .md, .txt, and .html are supported. Please enter a file name with a supported extension."
       status 422
       erb :new
     else
@@ -150,16 +157,6 @@ post '/:filename/delete' do
     unauthorized_action_redirect
   end
 end
-
-=begin
-+ create sign-up feature
-  + Add signup route 
-  + Add signup link to signin page
-  + Post username and hashed password to server when user submits signup form
-
-+ store this in a hash with the username
-- use bcrypt to compare hashed passwords when users try to sign in
-=end
 
 # render sign up form
 get '/users/signup' do

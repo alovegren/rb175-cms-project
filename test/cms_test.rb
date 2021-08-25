@@ -78,8 +78,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_flash_after_edit
-    skip
-    post "/about.txt", content: "anything"
+    post "/about.txt", { content: "anything" }, admin_session
 
     assert_equal 302, last_response.status
     assert_equal "File has been edited.", session[:message]
@@ -100,7 +99,7 @@ class CMSTest < Minitest::Test
   def test_render_new_doc_form
     get "/new", {}, admin_session
     assert_equal 200, last_response.status
-    assert_includes last_response.body, "<form method='post' action='/'>"
+    assert_includes last_response.body, "<form method='post' action='/create'>"
   end
 
   def test_create_new_doc
@@ -157,7 +156,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_bad_credentials
-    post '/users/signin', username: "stephen", password: "nub"
+    post '/users/signin', username: "missy", password: "tubby"
     assert_equal 422, last_response.status
     assert_nil session[:username]
     assert_includes last_response.body, "Invalid Credentials"
@@ -165,32 +164,20 @@ class CMSTest < Minitest::Test
   end
 
   def test_good_credentials
-    post '/users/signin', username: "admin", password: "secret"
+    post '/users/signin', username: "stephen", password: "chub"
     assert_equal 302, last_response.status
     assert_equal "Welcome!", session[:message]
-    assert_equal "admin", session[:username]
+    assert_equal "stephen", session[:username]
   end
 
   def test_signout
-    get "/", {}, {"rack.session" => { username: "admin" } }
+    get "/", {}, admin_session
     assert_includes last_response.body, "Signed in as admin"
 
     post '/users/signout'
     assert_equal "You have been signed out", session[:message]
 
-    get last_response["Location"]
-    assert_nil session[:username]
-    assert_includes last_response.body, "Username"
-  end
-
-  def test_signout
-    skip
-    get "/", {}, {"rack.session" => { username: "admin" } }
-    assert_includes last_response.body, "Signed in as admin"
-
-    post "/users/signout"
-    assert_equal "You have been signed out", session[:message]
-    
+    get "/" # returns a redirect so we need to submit another get request to the server to get a response back with a body
     get last_response["Location"]
     assert_nil session[:username]
     assert_includes last_response.body, "Sign In"
@@ -225,6 +212,11 @@ class CMSTest < Minitest::Test
 
     post "nub.rb/delete"
     unauthorized_action_test
+  end
+
+  def test_doc_has_bad_extension
+    post "/create", { doc_title: "nub.js" }, admin_session
+    assert_includes last_response.body, ".md, .txt, and .html are supported"
   end
 
   def teardown
