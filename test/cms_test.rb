@@ -157,7 +157,7 @@ class CMSTest < Minitest::Test
   end
 
   def test_bad_credentials
-    post '/users/signin', username: "missy", password: "nub"
+    post '/users/signin', username: "stephen", password: "nub"
     assert_equal 422, last_response.status
     assert_nil session[:username]
     assert_includes last_response.body, "Invalid Credentials"

@@ -2,6 +2,8 @@ require "sinatra"
 require "sinatra/reloader"
 require "tilt/erubis"
 require "redcarpet"
+require "yaml"
+require "bcrypt"
 
 configure do
   enable :sessions
@@ -13,6 +15,14 @@ def data_path
     File.expand_path("../test/data", __FILE__)
   else
     File.expand_path("../data", __FILE__)
+  end
+end
+
+def credentials_path
+  if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/users.yaml", __FILE__)
+  else
+    File.expand_path("../users.yaml", __FILE__)
   end
 end
 
@@ -40,6 +50,16 @@ end
 def unauthorized_action_redirect
   session[:message] = "You must be signed in to do that."
   redirect "/"
+end
+
+def get_valid_users
+  YAML.load_file(credentials_path)
+end
+
+def valid_login?(username, password)
+  valid_users = get_valid_users
+
+  BCrypt::Password.new(valid_users[username]) == password
 end
 
 # View all files
@@ -131,6 +151,31 @@ post '/:filename/delete' do
   end
 end
 
+=begin
++ create sign-up feature
+  + Add signup route 
+  + Add signup link to signin page
+  + Post username and hashed password to server when user submits signup form
+
++ store this in a hash with the username
+- use bcrypt to compare hashed passwords when users try to sign in
+=end
+
+# render sign up form
+get '/users/signup' do
+  erb :signup
+end
+
+# post username and hashed password to server
+post '/users/signup' do
+  password = BCrypt::Password.create(params[:password])
+  new_user_entry = "\n#{params[:username]}: #{password}"
+
+  File.write(credentials_path, new_user_entry, mode: "a")
+  session[:message] = "Thank you for creating an account. Please sign in."
+  redirect '/users/signin'
+end
+
 # render sign in form
 get '/users/signin' do
   erb :signin
@@ -138,7 +183,7 @@ end
 
 # update session data with login info
 post '/users/signin' do
-  if params[:username] == "admin" && params[:password] == "secret"
+  if valid_login?(params[:username], params[:password])
     session[:username] = params[:username]
     session[:message] = "Welcome!"
     redirect "/"
@@ -155,24 +200,3 @@ post '/users/signout' do
   session[:message] = "You have been signed out"
   redirect "/"
 end
-
-=begin
-+ on home page, check whether a user is signed in via a session parameter
-  + if not, redirect to users/signin
-  + if so, proceed with existing code in '/' route
-+ create new route for users/signin
-+ within the route, display a signin form
-  + if credentials match, 
-    + direct signin to a post route
-  + otherwise,
-    + display an error message and re-render the signin form
-+ create post route to update the server with the signin information
-+ set session parameter corresponding to login equal to true
-+ redirect to homepage
-
-+ add 'signed in as $USER' to home page
-+ add signout button
-  + post button output to some signout route
-  - set login equal to false
-  - redirect to homepage
-=end
