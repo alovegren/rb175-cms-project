@@ -197,3 +197,18 @@ post '/users/signout' do
   session[:message] = "You have been signed out"
   redirect "/"
 end
+
+# duplicate document
+post '/:filename/copy' do |filename|
+  og_file_path = File.join(data_path, filename)
+  contents = File.read(og_file_path)
+
+  name, ext = filename.split('.')
+  new_filename = "#{name}_copy.#{ext}"
+  new_file_path = File.join(data_path, new_filename)
+
+  File.write(new_file_path, contents)
+
+  session[:message] = "#{filename} has been copied to #{new_filename}."
+  redirect "/"
+end

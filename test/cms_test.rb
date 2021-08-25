@@ -219,6 +219,14 @@ class CMSTest < Minitest::Test
     assert_includes last_response.body, ".md, .txt, and .html are supported"
   end
 
+  def test_copy_doc
+    create_document "tubster.md", "Tubster is a fine striped fellow."
+    post "/tubster.md/copy", {}, admin_session
+
+    get "/"
+    assert_includes last_response.body, "tubster.md has been copied to tubster_copy.md"
+  end
+
   def teardown
     FileUtils.rm_rf(data_path)
   end
