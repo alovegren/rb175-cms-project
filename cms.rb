@@ -4,6 +4,7 @@ require "tilt/erubis"
 require "redcarpet"
 require "yaml"
 require "bcrypt"
+require "pry"
 
 SUPPORTED_EXTENSIONS = ['.md', '.txt', '.html']
 

@@ -231,3 +231,7 @@ class CMSTest < Minitest::Test
     FileUtils.rm_rf(data_path)
   end
 end
+
+=begin
+Add the ability to upload images to the CMS (which could be referenced within markdown files).
+=end
